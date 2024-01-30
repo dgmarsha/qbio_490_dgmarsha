@@ -46,7 +46,7 @@ setwd() # (ex: "/Users/nicoleblack/Desktop/qbio_490_nicole/week3_R")
 
 ```{r setup Exercise 2.3}
     # replace path with the path to your qbio_490_name directory
-    knitr::opts_knit$set(root.dir = normalizePath("/PATH/TO/DIRECTORY")) 
+    knitr::opts_knit$set(root.dir = normalizePath("C:/Users/ME/Documents/QBIO/sp24_course_work_490/qbio_490_dgmarsha/week3_R")) 
 ```
 
   Now that your environment is set up, let's get into coding!
@@ -61,7 +61,7 @@ var_num <- 23
 var_vector <- c(3, 2, 1)
 
 ## Create a new variable my_var to store anything you choose:
-
+my_var <- "Thing."
 
 print(my_var)
 ```
@@ -79,21 +79,21 @@ na <- NA
 
 # Boolean Value is either true or false
 ## booleans can be defined in a variety of ways in R!
-true_var <- 
-false_var <- 
+true_var <- TRUE
+false_var <- FALSE
 
 ## numeric is a catch all for any number value in R
-negative <- 
-decimal <- 
+negative <- -30
+decimal <- 7.8
 
 ## a string is any text value
 ## strings can be enclosed in single or double quote
-string_var <- 
-char_var <- 
+string_var <- "Hello."
+char_var <- 'a'
 
 ## vectors contain data elements of the same data type
 ## they are declared by enclosing elements in c()
-vector <- c() 
+vector <- c(1,2,3,4,5,6) 
 
 ## a factor is a categorical variable
 ## a factor has data elements (defined like a vector) and categories (known also as levels), that are inferred from the data 
@@ -125,6 +125,19 @@ SUMOFAGES <- sum(numeric_vector)
 
 ```{r Exercise 3.4}
 ## add code here!
+name = "John Doe" #name is a string.
+print(typeof(name))
+
+age = 47 #age is a numeric.
+print(typeof(age))
+
+birthday = "01/29/2024" #birthday is a string.
+print(typeof(birthday))
+
+three_fav_colors = c("Green", "Blue", "Indigo") #three_fav_colors is a vector of strings.
+print(typeof(three_fav_colors))
+
+#These don't match. The fxn class() gives the answers I provided. Their types are apparently all character but for the second, a double.
 ```
 
 ###### (4) Functions
@@ -156,7 +169,11 @@ max_value
 list_of_numbers <- c(1, 1, 2, 3, 5, 8, 13, 21)
 
 ## call functions here
-
+sum(list_of_numbers)
+min(list_of_numbers)
+mean(list_of_numbers)
+mode(list_of_numbers)
+summary(list_of_numbers)
 
 ```
 
@@ -181,14 +198,14 @@ list_of_numbers <- c(1, 1, 2, 3, 5, 8, 13, 21)
   Predict what each statement will evaluate to:
 
 ```{r Exercise 5.2}
-"cat" == "cat" & "dog" == "dog" # prediction: 
-"cat" == "cat" & "fish" == "hamster" # prediction: 
+"cat" == "cat" & "dog" == "dog" # prediction: T
+"cat" == "cat" & "fish" == "hamster" # prediction: F
 
-1 < 2 | 3 < 1 # prediction: 
-1 < 2 | 3 < 5 # prediction: 
+1 < 2 | 3 < 1 # prediction: T
+1 < 2 | 3 < 5 # prediction: T
 
 "blue" %in% c("yellow", "red", "blue") &! "happy" %in% c("sad", "angry")
-# prediction: 
+# prediction: T
 ```
 
   "If" statements (along with "else if" and "else" statements) are the most simple control flows to write, and they are also what we will use the majority of the time.
@@ -196,19 +213,22 @@ list_of_numbers <- c(1, 1, 2, 3, 5, 8, 13, 21)
   The syntax for "if", "else if", and "else" statements is as follows. Fill in possible conditions and actions so that the "if" statement is skipped, and the "else if" runs, printing out "Success!". Run the block to test.
 
 ```{r Exercise 5.3}
-
-if (# condition) {
+testNum= 4
+if (testNum>5) {
   # action
-} else if (# condition) {
+  print("Path 1.")
+} else if (testNum>0) {
   # action
+  print("Success!")
 } else {
   # action
+  print("Path 3.")
 }
 ```
 
   An "if" block can be used alone or in conjunction with any number of "else if" blocks that can end in up to one "else" block. Note that you cannot have an "else if" or an "else" block without an "if" statement. These blocks are executed in order until one expression is true. At a true expression, the contents of the block runs, and the control flow is exited (ie none of the below blocks are tested).
 
-  Sometimes using "if... else if... else" doesn't work. You might get the error code: "the condition has length > 1". This is because an if statement only checks ONE element to evaluate the condition. To performs an element-wise evaluation on a vector, we must use ifelse(), a vectorized function. The syntax is follows:
+  Sometimes using "if... else if... else" doesn't work. You might get the error code: "the condition has length > 1". This is because an if statement only checks ONE element to evaluate the condition. To performs an element-wise evaluation on a vector, we must use ifelse(), a vectorized function. The syntax is as follows:
 
 ```{r 5.4 - syntax of ifelse() and nested ifelse()}
 ifelse(expression, x, y) # where x happens if the expression is true, and y happens if it is false
@@ -241,7 +261,9 @@ if (7.5 %in% new_list) {
 } else {
   print("G")
 }
+#Prediction: D \n E
 ```
+
 
 ###### (6) Loops
 
@@ -272,9 +294,14 @@ while (i < 10) {
 x = 0
 my_list <- c(1, 10, x)
 mean <- mean(my_list)
-while (# condition) {
+while (mean<=10) {
   # do something
+  print(mean)
+  x = x+1
+  my_list <- c(1, 10, x)
   # update condition
+  mean <- mean(my_list)
+  
 }
 ```
 
@@ -302,6 +329,10 @@ for (element in list) { # note that I can call "element" whatever I want, it lik
 list <- c(1, 5, 20, 0)
 
 # write loop here
+for (i in list){
+  print(i*i*i)
+}
+  
 ```
 
   You can also use a for loop to run code a specified number of times by using a sequence (ex: 1:5) instead of a list. The syntax is as follows:
@@ -315,8 +346,11 @@ for (i in 1:10) {
   Use this syntax to print all numbers between -7 and 7.
 
 ```{r Exercise 6.8}
-# write loop here
-
+# write loop here   - I am assuming inclusive.
+for (i in -7:7) {
+  # do something
+  print(i)
+}
 ```
 
   VERY IMPORTANT NOTE: In R, we generally want to avoid using loops since they are fairly slow and because R is already optimized for repeating actions on any lists/vectors. However, there are certain instances where loops must be used, so if you absolutely cannot think of any other solution, a loop is always a good backup.
@@ -426,6 +460,7 @@ Use this syntax to view the mpg column of the mtcars data frame.
 
 ```{r Exercise 8.4}
 # add code here
+mtcars$mpg
 
 ```
 
@@ -433,8 +468,9 @@ What if we want to view a column, but don't know it's exact name? We can get all
 
 ```{r Exercise 8.5}
 # call functions here
-
-mtcars$ # fill in name of carburetor column here
+colnames(mtcars)
+rownames(mtcars)
+mtcars$carb # fill in name of carburetor column here
 ```
 
 We can also view particular subsets of the data frame by using the df[row, column] notation.
@@ -460,6 +496,7 @@ Select the horse power data for the Duster 360, Lincoln Continental, and Maserat
 
 ```{r Exercise 8.7}
 # write code here
+mtcars[c("Duster 360","Lincoln Continental", "Maserati Bora") , "hp"]
 ```
 
 ###### (9) Editing data frames
@@ -474,14 +511,14 @@ data_frame$new_column <- values
 
 Let's try this out! In the mtcars data frame, there is a column called "am". This column holds transmission information where 0 = automatic, and 1 = manual. But as of now, this isn't very clear without knowing that information.
 
-Create a new column called "transmission" that assigns the value "automatic" where am = 0, and "manual" where am = 1.
+Create a new column called "transmission" that assigns the value  where am = 0, and "manual" where am = 1.
 
 You can use an ifelse statement to assign your values! Remember, ifelse() takes in three arguments: ifelse(test_condition, yes, no)
 
 ```{r Exercise 9.2}
 # write code here
-
-
+mtcars$transmission = ifelse(mtcars$am==0,"automatic","manual" )
+head(mtcars)
 ```
 
 Now that we have the "transmission" column, the "am" column is no longer particularly useful. Let's delete it.
@@ -498,12 +535,16 @@ Use the above syntax to save a copy of the mtcars data without the "am" column. 
 
 ```{r Exercise 9.4}
 # write code here
+colnames(mtcars)
+mtcars_copy <- mtcars[,-9]
+head(mtcars_copy)
 ```
 
 View your new mtcars copy data frame to check that the "am" column was dropped.
 
 ```{r Exercise 9.5}
 # write code here
+str(mtcars_copy)
 ```
 
 
@@ -535,6 +576,7 @@ library(package) # you need to load in a package in every file that uses it (it'
 
 ```{r}
 # write code here
+help(is.na)
 ```
 
 ###### (12) Further Practice
