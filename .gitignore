@@ -4,3 +4,6 @@ MANIFEST*
 htseq_h5*
 analysis_data
 test
+.RData
+.Rhistory
+Downloader.nb.html
