@@ -7,12 +7,12 @@ date: 01/08/24
 ###### (1) Set Up
 
 ```{r setup}
-    knitr::opts_knit$set(root.dir = normalizePath("mnt\Users\ME\Documents\QBIO\sp24_course_work_490\qbio_490_dgmarsha\analysis_data")) 
+    knitr::opts_knit$set(root.dir = normalizePath("C:/Users/ME/Documents/QBIO/sp24_cw/qbio_490_dgmarsha/analysis_data"))  
 ```
 
 ```{r}
 # install (if needed) and load maftools, TCGAbiolinks, and ggplot2 libraries
-install.packages("maftools") #get this right.
+#install.packages("maftools") #get this right.
 library(maftools)
 library(TCGAbiolinks)
 library(ggplot2)
@@ -45,13 +45,13 @@ Now, we can query in the MAF files using GDCquery()/GDCdownload()/GDCprepare() a
 ```{r Exercise 2.1}
 #open = public
 #SNV ~ SNP
-maf_query <- GDCquery(
-  project = 'TCGA-SKCM',
-  data.category = "Simple Nucleotide Variation",
-  access = "open", # we only have access to somatic mutations which are open access
-  data.type = "Masked Somatic Mutation",
-  workflow.type = "Aliquot Ensemble Somatic Variant Merging and Masking"
-)
+#maf_query <- GDCquery(
+  #project = 'TCGA-SKCM',
+  #data.category = "Simple Nucleotide Variation",
+  #access = "open", # we only have access to somatic mutations which are open access
+  #data.type = "Masked Somatic Mutation",
+  #workflow.type = "Aliquot Ensemble Somatic Variant Merging and Masking"
+#)
 #only run this once
 #pulls copy to local
 #GDCdownload(maf_query)
@@ -145,10 +145,11 @@ We are going to start off by making our first MAF figure using the oncoplot() fu
 Generate an oncoplot by filling in the maf argument below. Fill in the top argument with various integer arguments (e.g. 5, 10, 20, etc.) to see the genes that are mutated in the most patients. Save your plot to your personal repo folder with a descriptive name.
 
 ```{r Exercise 8.1}
-oncoplot(maf = FILL IN HERE,
-         top = FILL IN HERE,
+oncoplot(maf = maf_object,
+         top = 10,
          borderCol = NA) 
-
+#maf is the maf object with all the data
+#top is n
 ggsave("PATH/TO/qbio_490_NAME/oncoplot_top#_SKCM.png")
 ```
 
@@ -157,7 +158,7 @@ You can also create an oncoplot for specific genes of your choosing by passing a
 
 ```{r Exercise 8.2}
 oncoplot(maf = FILL IN HERE,
-         genes = FILL IN HERE,
+         genes = c("ganes"),
          borderCol = NA)
 ```
 
@@ -175,6 +176,7 @@ oncoplot(maf = FILL IN HERE,
          top = 10,
          clinicalFeatures = "age_category",
          borderCol = NA)
+#can add clinical features oin bottom
 ```
 
 Do you see any clustering between old and young patients?
@@ -182,7 +184,8 @@ Do you see any clustering between old and young patients?
 ###### (5) subsetMaf + CoOncoplots
 
 Another way to compare between patient populations is to use a coOncoplot. Before we create our coOncoplot, we first need to subset our maf_object dataframe into two separate data frames, one for old patients and one for young patients.
-
+#look at high riskand low risk group
+#this is data represenation not stats, must raise own flag to be roughly similar sample sizes
 We can do this with subsetMaf(). The subsetMaf(maf, tsb) function needs two arguments in this case: maf is the original MAF object, and tsb is a vector of patient IDs (barcodes) to select.
 
 Store the young patient barcodes in a vector called young_patient_barcodes. Hint: you can use boolean masking for this!
@@ -194,8 +197,11 @@ young_patient_barcodes <-
 Use the young_patient_barcode vector in the tsb argument of subsetMaf.
 
 ```{r Exercise 9.2}
-young_maf <- subsetMaf(maf = FILL IN HERE,
+young_maf <- subsetMaf(maf = FILL IN HERE, #good fxn? Mind oncoplot only shows the patients with mutations in the columns.
                        tsb = FILL IN HERE)
+#boolean Mf_clincal where maf young, has to be vector
+#maf is maf object, tsb is vector of young barcodes
+#
 ```
 
 Create an old_patient_barcode vector and use that to subset just the old patient data.
@@ -209,13 +215,13 @@ old_maf <-
 Use coOncoplot() to draw two oncoplots side by side, comparing young vs. old patients. m1 is the first MAF object to plot, and m2 is the second. Be sure to provide descriptive names in the m1Name and m2Name arguments! Again, save the plot using the ggsave() function.
 
 ```{r Exercise 9.4}
-coOncoplot(m1 = FILL IN HERE, 
+coOncoplot(m1 = FILL IN HERE, #both mafs
            m2 = FILL IN HERE, 
-           m1Name = FILL IN HERE, 
+           m1Name = FILL IN HERE, #titles
            m2Name = FILL IN HERE, 
            borderCol = NA)
 
-ggsave("PATH/TO/qbio_490_NAME/coOncoplot_GENE_GENE_SKCM")
+ggsave("C:/Users/ME/Documents/QBIO/sp24_cw//qbio_490_NAME/coOncoplot_GENE_GENE_SKCM")
 ```   
 
 Are there any genes that seem to be mutated at different rates between the two populations? If so, pick one. Can you think of any reasons why that gene might be mutated more in younger/older patients (Google it!)
@@ -224,32 +230,38 @@ Chosen Gene:
 More highly mutated in young or old population: 
 Hypothesized Reason:
 
+#Then somatic interactions plot, type of heatmap
+#n commonly mutated genes vs n commonly mutated genes
+#looking for relations in mutation rate
+#p labels. Can show likely together or separate. The following.
 
 ###### (6) Fisher's Exact Test - Demo
-
+#gives p whetehr two vas likely to occur together
+#compare odd ratios, odd event in treatment or control group comparsison. P val of that and odds ratio.
 Rewrite the vital_status and gender columns of your clinical df as factors.
 
 ```{r Exercise 4.1}
-clinical$vital_status <- FILL IN HERE
+clinical$vital_status <- clinic$vital_status
 clinical$gender <- FILL IN HERE
 ```
 
 Create a contingency table using table().
 
 ```{r Exercise 4.2}
-contig <- table((FILL IN HERE)
+contig <- table(clinic$vital_status[clinic$gender!="[Not Available]"],clinic$gender[clinic$gender!="[Not Available]"])
+contig
 ```
 
 Visualize our contingency table using a mosaic plot.
 
 ```{r Exercise 4.3}
-mosaicplot(FILL IN HERE)
+mosaicplot(contig)
 ```
 
 Run our Fisher's exact test.
 
 ```{r Exercise 4.4}
-fisher_test <- fisher.test(FILL IN HERE)
+fisher_test <- fisher.test(contig)
 ```
 
 View the results of our test.
@@ -257,7 +269,7 @@ View the results of our test.
 ```{r Exercise 4.5}
 fisher_test
 
-fisher_test$p.value
+
 ```
 
 What does this p-value tell us?
@@ -281,6 +293,7 @@ geneB_maf <- subsetMaf(maf = FILL IN HERE,
 Now let's start to build our contingency table.
 
 Access the barcodes of the patients with mutations in genes A and the barcodes of the patients with mutations in gene B. How do we access patient barcodes within the MAF object without duplicate patients? @data or @clinical.data?
+#contingency table makes easier? or somatic interaction plot
 
 ```{r Exercise 6.2}
 mut_pats_geneA <- FILL IN HERE
@@ -345,7 +358,7 @@ Run somaticInteractions for your above genes by passing in a vector with your ge
 
 ```{r Exercise 7.1}
 somaticInteractions(maf = FILL IN HERE,
-                    genes = FILL IN HERE,
+                    genes = FILL IN HERE, #can look at specifc or just teh top mutatted ones. top works better
                     pvalue = c(0.05, 0.1)) ## these are the default p-value significance levels
 ```
 
@@ -356,19 +369,19 @@ somaticInteractions(maf = FILL IN HERE,
                     top = FILL IN HERE,
                     pvalue = c(0.05, 0.1))
 ```
-
+#Many are significantly co-occurrent.
 
 ###### (8) Lollipop Plots
-
+#distribution of of mutations across gene, see domains for protein, see impact
 Lollipop plots display the location of each mutation along the gene’s DNA sequence. The x-axis of a lollipop plot is the amino acid sequence that makes up the gene. Individual mutations are annotated by a ball-and-stick, which looks like a lollipop, hence the name. The colors represents the type of mutation at a given point on the gene (similar to colors of the oncoplots), and the visualization in the middle of the plot is the gene itself differentiated between its different domain/motif sections.
 
 Let's make a lollipop plot for TP53.
 
 ```{r Exercise 10.1}
-lollipopPlot(maf = FILL IN HERE,
-             gene = "FILL IN HERE")
+lollipopPlot(maf = maf_object,
+             gene = "TP53")
 
-ggsave("PATH/TO/qbio_490_NAME/lollipop_TP53_SKCM")
+ggsave("C:/Users/ME/Documents/QBIO/sp24_cw/qbio_490_dgmarsha/lollipop_TP53_SKCM")
 ```
 
 
@@ -378,6 +391,7 @@ maf objects from before.
 Now fill in the co-lollipop plot function below. Be sure to add descriptive names for each population.
 
 ```{r Exercise 10.3}
+#can lollipop between groups of patients.
 lollipopPlot2(m1 = FILL IN HERE, 
               m2 = FILL IN HERE, 
               m1_name = FILL IN HERE,
@@ -393,15 +407,17 @@ Now, interpret your plot. Answer the following questions:
 - Are there any other interesting observations?
 
 ###### (9) Survival Analysis (mafSurvival)
+#show survival mt vs WT
 
 Remember back to Kaplan-Meier survival plots (from the clinical data tutorial). These plots allow us to visualize survival probabilities stratified by different clinical factors (such as age, sex, stage, etc.)
 
 We can also visualize survival probabilities stratified by mutational status. To do this, we use mafSurvival. This is very similar to our traditional KM plots, you may want to open up the clinical data tutorial to follow along there as well.
 
 ```{r Exercise 11.1}
-mafSurvival(maf = FILL IN HERE,
-            genes = "FILL IN HERE", ## pick a gene of your choosing
-            time = "days_to_last_followup", ## name of the column in maf_object@clinical.data containing survival time
+mafSurvival(maf = maf_object,
+            genes = "TP53", ## pick a gene of your choosing
+            time = "days_to_last_follow_up", ## name of the column in maf_object@clinical.data containing survival time
+            #look at better way to predict based on columns
             Status = "Overall_Survival_Status", ## name of the column that contains a boolean value for death events, you may need to recreate this... 
             isTCGA = TRUE)
 ```

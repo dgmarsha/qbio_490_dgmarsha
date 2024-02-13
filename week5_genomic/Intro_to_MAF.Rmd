@@ -1,6 +1,7 @@
 ---
 title: "Intro_to_MAF"
 date: "2024-01-19"
+
 ---
 
 ***Deliverables***
@@ -16,30 +17,25 @@ In MAF_Tutorial.Rmd, you looked at how to analyze mutation data in terms of clin
 *Pre-Assignment*
 Load all necessary packages, read in the clinical data .csv file you have in your analysis_data folder, and instantiate the MAF_object.
 ```{r}
-knitr::opts_knit$set(root.dir = normalizePath("/PATH/TO/analysis_data"))
+knitr::opts_knit$set(root.dir = normalizePath("C:/Users/ME/Documents/QBIO/sp24_cw/qbio_490_dgmarsha/analysis_data"))
 
 library(BiocManager)
 library(TCGAbiolinks)
 library(maftools)
+library(ggplot2)
 
-clinical <- read.csv("/PATH/TO/analysis_data/skcm_clinical_data.csv")
+clinical <- read.csv("C:/Users/ME/Documents/QBIO/sp24_cw/qbio_490_dgmarsha/analysis_data/skcm_clinical_data.csv")
 colnames(clinical)[ colnames(clinical) == "bcr_patient_barcode" ] <- "Tumor_Sample_Barcode"
-write.csv(clinical, "/PATH/TO/analysis_data/skcm_clinical_data.csv", row.names = FALSE)
+write.csv(clinical, "C:/Users/ME/Documents/QBIO/sp24_cw/qbio_490_dgmarsha/analysis_data/skcm_clinical_data.csv", row.names = FALSE)
 
 ```
 
 ```{r}
-maf_query <- GDCquery(
-    project = "TCGA-SKCM", 
-    data.category = "Simple Nucleotide Variation", 
-    access = "open", # we only have access to somatic mutations which are open access
-    data.type = "Masked Somatic Mutation", 
-    workflow.type = "Aliquot Ensemble Somatic Variant Merging and Masking"
-)
+#maf_query <- GDCquery(project = "TCGA-SKCM", data.category = "Simple Nucleotide Variation", access = "open", data.type = "Masked Somatic Mutation", workflow.type = "Aliquot Ensemble Somatic Variant Merging and Masking")
 
 #GDCdownload(maf_query) # you shouldn't have to redownload any data!
 
-maf <- GDCprepare(maf_query) # as long as it runs, ignore any errors
+#maf <- GDCprepare(maf_query) # as long as it runs, ignore any errors
 
 maf_object <- read.maf(maf = maf, 
                        clinicalData = clinical,
@@ -52,6 +48,14 @@ maf_object <- read.maf(maf = maf,
 *1*
 Choose a clinical variable to separate your populations into two different groups and rewrite the column or create a new column with that variable as a factor. ***Do not use age or vital_status as your clinical variable.*** Hint: if your variable is continuous, you will need to determine your own cutoffs for the different levels of the factor. If your variable is categorical and has more than two possible values, choose the two that are the most common.
 ```{r}
+#clinical$breslow_thickness_at_diagnosis= as.numeric(clinical$breslow_thickness_at_diagnosis)
+summary(clean_clinic$breslow_thickness_at_diagnosis)
+NA_clinic_mask <- !is.na(clinical$breslow_thickness_at_diagnosis)
+clean_clinic = clinical[NA_clinic_mask,]
+clean_clinic$breslow_thickness_categ = ifelse(clean_clinic$breslow_thickness_at_diagnosis>3,"Thicker", "Thinner")
+clinical$breslow_thickness_categ = ifelse(clinical$breslow_thickness_at_diagnosis>3,"Thicker", "Thinner")
+#summary(as.vector(clinical$breslow_thickness_at_diagnosis))
+#clinical$breslow_thickness_categ
 
 
 ```
@@ -61,14 +65,46 @@ Choose a clinical variable to separate your populations into two different group
 Create a co-oncoplot with the top 10-20 (you choose) most mutated genes for the two groups. Pick one that has a large discrepancy in % mutated or type of mutations between the groups and research it. 
 Research it. What is the gene used for? Can you think of any reason for the discrepancy?
 ```{r}
+#All of the top 9 mutated genes on the coOncoplot had higher mutation rates for the thinner tumours. The percent difference was largest of the top 5 for DNAH5, which I chose. That gene apparently encodes a protein involved in ATPases. It is involved with cilia function. Based on the known functions, I can't think of an intuitive reason for this gene to be more mutated. Perhaps it is next to a real oncogene, and it pre-cancerous cells acquire mutations in it in the process of becoming a tumour? Probably not. It somehow plays a role in extracelluar matrices, and that causes tumours with less function to be thinner?
+#https://www.genecards.org/cgi-bin/carddisp.pl?gene=DNAH5
+#https://www.sciencedirect.com/science/article/pii/S2214330020300602
+breslow_thick_mask <- clean_clinic$breslow_thickness_categ == "Thicker"
+thicker_maf <- subsetMaf(maf=maf_object, tsb =clean_clinic$Tumor_Sample_Barcode[breslow_thick_mask] )
+thinner_maf <- subsetMaf(maf=maf_object, tsb =clean_clinic$Tumor_Sample_Barcode[!breslow_thick_mask] )
 
+thicker_maf.genes = getGeneSummary(thicker_maf)[1:10]
+thinner_maf.genes = getGeneSummary(thinner_maf)[1:10]
+mdt = merge(thicker_maf.genes[,.(Hugo_Symbol, MutatedSamples)], thinner_maf.genes[,.(Hugo_Symbol, MutatedSamples)], by = 'Hugo_Symbol', all = TRUE)
+mdt$MutatedSamples.x[is.na(mdt$MutatedSamples.x)] = 0
+mdt$MutatedSamples.y[is.na(mdt$MutatedSamples.y)] = 0
+mdt$max = apply(mdt[,.(MutatedSamples.x, MutatedSamples.y)], 1, max)
+mdt = mdt[order(max, decreasing = TRUE)]
 ```
+
+```{r}
+png("C:/Users/ME/Documents/QBIO/sp24_cw/qbio_490_dgmarsha/week5_genomic/coOncoplot_Thicker_Thinner_SKCM.png")
+coOncoplot(m1 = thicker_maf, #both mafs
+           m2 = thinner_maf, titleFontSize = 1.3,
+           m1Name = "Thicker Melanomas", #titles
+           m2Name = "Thinner Melanomas", genes = mdt$Hugo_Symbol, 
+           borderCol = NA)
+
+#ggsave() didn't work, gave blank.
+```
+
 
 *3*
 Create a contingency table with your variable and chosen gene. Run a Fisher’s Exact Test between presence of mutations for that gene and your clinical variable. Create and save a mosaic plot. 
 Interpret the output of the Fisher’s Exact Test in terms of the odds ratio and p-value.
 ```{r}
-
+png("C:/Users/ME/Documents/QBIO/sp24_cw/qbio_490_dgmarsha/week5_genomic/MosaicPlot_Breslows_DNAH5_SKCM.png")
+#The odds ratio of 2.2 means the odds of a thicker melanoma are about halved if DNAH5 is mutated, and according to the very low p value of .0003, this relationship is significant.
+mutated = ifelse(clean_clinic$Tumor_Sample_Barcode %in% maf_object@data$Tumor_Sample_Barcode[maf_object@data$Hugo_Symbol=="DNAH5"], "Mutated", "Wild-type")
+clean_clinic$DNAH5_mutated = mutated
+contig <- table(clean_clinic$breslow_thickness_categ, clean_clinic$DNAH5_mutated)
+fisher_test<-fisher.test(contig)
+print(fisher_test)
+mosaicplot(contig)
 ```
 
 
@@ -76,6 +112,12 @@ Interpret the output of the Fisher’s Exact Test in terms of the odds ratio and
 Subset your maf_object based on your chosen clinical variable and create a co-lollipop plot of your chosen gene divided between the two different clinical variable possibilities. Include descriptive names on your plot.
 Do you notice any difference in terms of mutations (e.g. sites, types, number) between the two populations?
 ```{r}
+#It is hard to tell much because there are so many mutations in both categories. I can see that the thinner tumours have more mutations, and more nonsense mutations as part of that.
+png("C:/Users/ME/Documents/QBIO/sp24_cw/qbio_490_dgmarsha/week5_genomic/colollipop_Thicker_Thinner_SKCM.png")
+lollipopPlot2(m1 = thicker_maf, 
+           m2 = thinner_maf, gene = "DNAH5",     
+           m1_name = "Thicker Melanoma", 
+           m2_name = "Thinner Melanoma")
 
 ```
 
@@ -83,7 +125,23 @@ Do you notice any difference in terms of mutations (e.g. sites, types, number) b
 *5*
 Create your Overall_Survival_Status column and create a mafSurvival KM plot based on mutations in your chosen gene.
 Does there seem to be a difference? Hypothesize why or not based on the other analysis you did with the gene above.
+
 ```{r}
-
-
+#DNAH5 mutations do not appear to have a significant relationship with survival. The gene is not known to control replication, vascularization signals, or any other tumour related thing, so this is not surprising. Perhaps thinner melanomas aren't associated with survival either, I'd have to check.
+mafClin = maf_object@clinical.data
+mafClin$survival_time <- ifelse((mafClin$death_days_to!="[Not Available]" & mafClin$death_days_to!="[Not Applicable]"), mafClin$death_days_to,mafClin$last_contact_days_to )
+deep_cleaned_clinic <- mafClin[(mafClin$survival_time!="[Not Available]" & mafClin$survival_time!="[Not Applicable]" & mafClin$survival_time!="[Completed]"),]
+deep_cleaned_clinic$survival_time <- as.numeric(deep_cleaned_clinic$survival_time)
+deep_cleaned_clinic$death_event <- ifelse(deep_cleaned_clinic$vital_status=="Alive", T, F)
+clean_maf = subsetMaf(maf=maf_object, tsb =deep_cleaned_clinic$Tumor_Sample_Barcode)
+clean_maf@clinical.data$Overall_Survival_Status = deep_cleaned_clinic$death_event
+clean_maf@clinical.data$days_to_last_follow_up = deep_cleaned_clinic$survival_time
+```
+```{r}
+png("C:/Users/ME/Documents/QBIO/sp24_cw/qbio_490_dgmarsha/week5_genomic/mafSurvival_SKCM.png")
+mafSurvival(maf = clean_maf,
+            genes = "DNAH5", 
+            time = "days_to_last_follow_up", 
+            Status = "Overall_Survival_Status",  
+            isTCGA = TRUE)
 ```

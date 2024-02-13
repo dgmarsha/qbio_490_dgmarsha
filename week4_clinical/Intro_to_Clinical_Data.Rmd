@@ -82,7 +82,7 @@ Answer the following questions based on the output of those commands:
 ```{r Exercise 3.1}
 # write code here
 str(clinic)
-head(clinic) 
+#head(clinic) 
 #head for just the first few lines, str for the structure.
 
 # 1. r: 470 c:65
