@@ -9,3 +9,6 @@ test
 Downloader.nb.html
 MAF_Tutorial.Rmd
 Transcriptomics_Tutorial.Rmd
+skcm_rna_clinical_data.csv
+skcm_rna_count_data.csv
+skcm_rna_gene_data.csv
