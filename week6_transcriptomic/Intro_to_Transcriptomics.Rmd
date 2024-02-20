@@ -18,12 +18,21 @@ In Transcriptomics_Tutorial.Rmd, you learned how to manipulate the SummarizedExp
 *Pre-Assignment*
 Use knitr function to set your working directory to your analysis_data folder in qbio_490_name.
 ```{r}
- knitr::opts_knit$set(root.dir = normalizePath("/PATH/TO/analysis_data"))
+ knitr::opts_knit$set(root.dir = normalizePath("C:/Users/ME/Documents/QBIO/sp24_cw/qbio_490_dgmarsha/analysis_data"))
+
 ```
 
 Load all necessary packages and instantiate the rna_se object
 ```{r}
 #packages
+if (!require("TCGAbiolinks", quietly = TRUE))
+  BiocManager::install("TCGAbiolinks")
+if (!require("SummarizedExperiment", quietly = TRUE))
+  BiocManager::install("SummarizedExperiment")
+if (!require("DESeq2", quietly = TRUE))
+  BiocManager::install("DESeq2")
+if (!require("EnhancedVolcano", quietly = TRUE))
+  BiocManager::install("EnhancedVolcano")
 library(TCGAbiolinks)
 library(SummarizedExperiment)
 library(DESeq2)
@@ -48,16 +57,33 @@ Perform all data cleaning and label manipulation steps (hint: applying colnames 
 For rna_clinical:
 ```{r}
 #creation:
-
+rna_clinical <- data.frame(rna_se@colData)
+rna_clinical= as.data.frame(rna_clinical)
+#rownames(rna_clinical)
+#Rows are patient ids, colnames are clinical categories.
 #removal of "nested lists":
-
-
+treatments_mask <- ifelse(colnames(rna_clinical)=='treatments',F,T)
+rna_clinical<-rna_clinical[,treatments_mask]
+primary_site_mask <- ifelse(colnames(rna_clinical)=='primary_site',F,T)
+rna_clinical<-rna_clinical[,primary_site_mask]
+disease_type_mask <- ifelse(colnames(rna_clinical)=='disease_type',F,T)
+rna_clinical<-rna_clinical[,disease_type_mask]
+normal_mask = rna_clinical$definition != 'Solid Tissue Normal'
+rna_clinical = rna_clinical[normal_mask,]# rows
+vital_mask = rna_clinical$vital_status != "Not Reported"
+rna_clinical= rna_clinical[vital_mask,]
+rna_clinical$age_category = ifelse(rna_clinical$age_at_index<=58, 'young','old')
+age_na_mask = !is.na(rna_clinical$age_category)
+rna_clinical = rna_clinical[age_na_mask,]
 ```
 
 For rna_genes:
 ```{r}
 #creation:
-
+rna_genes<- rna_se@rowRanges@elementMetadata
+rna_genes= as.data.frame(rna_genes)
+colnames(rna_genes)
+rownames(rna_genes) = rna_genes$gene_id
 #changing rownames
 
 ```
@@ -65,32 +91,53 @@ For rna_genes:
 For rna_counts:
 ```{r}
 #creation:
-
+rna_counts <- as.data.frame(rna_se@assays@data$unstranded)
+#Clean
+rna_counts = rna_counts[,normal_mask]
+rna_counts = rna_counts[,vital_mask]
+rna_counts=rna_counts[,age_na_mask]
 #changin row names and colnames
+rownames(rna_counts) = rownames(rna_genes)
+colnames(rna_counts) = rownames(rna_clinical)
+
 
 ```
 
 
 *2*
 Determine and define your experimental design for the differential expression analysis, comparing patients samples by gender. Control for covariance of age_category OR vital_status. Manipulate those columns so that they are ready for differential expression analysis (hint: what kind of variables are they? what data type are they by default? do you need to handle unknown values?) Filter out genes with a total expression across all patients less than 10.
+
+It has to be by gender?
+Only control for one of those two covariants?
 ```{r}
-
-
+rna_clinical$gender=factor(rna_clinical$gender)
+rna_clinical$vital_status=factor(rna_clinical$vital_status)
+#Both already categorical.
+low_count_mask = rowSums(rna_counts)>10
+rna_counts=rna_counts[low_count_mask,]#filter out low expression
+rna_genes=rna_genes[low_count_mask,]#filter out low expression
+design = ~ vital_status + gender
 ```
 
+```{r}
+dim(rna_counts)
+dim(rna_clinical)
+#colnames(rna_counts)
+#rownames(rna_clinical)
 
+colnames(rna_counts)[453]
+rownames(rna_clinical)[453]
+```
 *3*
 Perform the differential expression analysis, create a volcano plot, and interpret what genes from each of the 6 sections means (assuming thresholds of -log10padj = 2 and log2FoldChange = 1)
 ```{r}
-dds <- DESeqDataSetFromMatrix(countData = #fill in,
-                              colData = #fill in,
-                              design= #fill in)
+dds <- DESeqDataSetFromMatrix(countData = rna_counts,colData = rna_clinical, design= design)
 
 dds_obj <- DESeq(dds)
 
 resultsNames(dds_obj)
 
-results <- results(dds_obj, format = "DataFrame", contrast = c(#variable name, #numerator , #denominator))
+results <- results(dds_obj, format = "DataFrame", contrast = c("gender", "female" , "male"))
 
 results <- data.frame(results)
 ```
@@ -108,22 +155,24 @@ results
 
 
 ```{r}
+png("C:/Users/ME/Documents/QBIO/sp24_cw/qbio_490_dgmarsha/week6_transcriptomic/RNA_Volcano_SKCM_byGender.png")
 EnhancedVolcano(results,
                 lab = results$gene_name,
                 x = 'log2FoldChange',
                 y = 'pvalue',
                 title = 'Vital Status: Alive vs Dead',
+                axisLabSize = 10,
+                titleLabSize = 14, subtitleLabSize = 10, captionLabSize = 10,
                 pointSize = 1.0,
-                labSize = 5.0)
+                labSize = 2.0)
 ```
 
 
 # Explain what genes from each part of the Volcano Plot mean in terms of their significance and up/down regulation. 
-top-right genes: 
-bottom-right genes: 
-top-left genes: 
-bottom-left genes: 
-top-middle genes: 
-bottom-middle genes: 
-
+top-right genes: Significantly upregulated in female patients.
+bottom-right genes: Insignificantly upregulated in female patients.
+top-left genes: Significantly upregulated in male patients.
+bottom-left genes: Insignificantly upregulated in male patients.
+top-middle genes: Significantly ~neutral expression.
+bottom-middle genes: Insignificantly ~neutral expression.
 Save the picture of the volcano plot (using either ggsave() or right clicking and manually downloading the image and push this .Rmd and the image to GitHub)
