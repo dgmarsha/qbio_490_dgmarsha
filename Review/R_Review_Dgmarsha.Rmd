@@ -1,0 +1,235 @@
+
+```{r setup}
+
+ knitr::opts_knit$set(root.dir = normalizePath("C:/Users/ME/Documents/QBIO/sp24_cw/qbio_490_dgmarsha/analysis_data"))
+#Change this to where you are storing the GDC data.
+```
+
+Installing and loading all necessary packages
+```{r}
+#packages
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager", repos = "https://cloud.r-project.org")
+  BiocManager::install(checkBuilt = TRUE, 
+                     lib = "C:/Users/ME/AppData/Local/R/win-library/4.3", 
+                     version = "3.18")
+library(TCGAbiolinks)
+if (!require("SummarizedExperiment", quietly = TRUE))
+  BiocManager::install("SummarizedExperiment")
+library(SummarizedExperiment)
+if (!require("DESeq2", quietly = TRUE))
+  BiocManager::install("DESeq2")
+library(DESeq2)
+if (!require("EnhancedVolcano", quietly = TRUE))
+  BiocManager::install("EnhancedVolcano")
+library(EnhancedVolcano)
+if (!require("maftools", quietly = TRUE))
+  BiocManager::install("maftools")
+library(maftools)
+if (!require(survival)) {
+  install.packages("survival")
+}
+library(survival)
+if (!require(survminer)) {
+  install.packages("survminer")
+}
+library(survminer)
+if (!require(ggplot2)) {
+  install.packages("ggplot2")
+}
+library(ggplot2)
+```
+
+```{r}
+#Uncomment the GDCdownload commands below while running this code for the first time. It will take a bit. Some warnings are fine.
+rna_query <- GDCquery(project ="TCGA-SKCM", data.category = "Transcriptome Profiling", data.type = "Gene Expression Quantification", workflow.type = "STAR - Counts")
+
+#GDCdownload(rna_query)
+rna_se <- GDCprepare(rna_query)
+rna_clinical <- data.frame(rna_se@colData)
+rna_clinical$Tumor_Sample_Barcode <- rna_clinical$patient
+```
+```{r}
+clin_query <- GDCquery(project = "TCGA-SKCM",
+                        data.category = "Clinical",
+                        data.type = "Clinical Supplement",
+                        data.format = 'BCR Biotab')
+#GDCdownload(clin_query)
+clinical.BCRtab.all <- GDCprepare(clin_query)
+```
+```{r}
+maf_query <- GDCquery(project = "TCGA-SKCM", data.category = "Simple Nucleotide Variation", access = "open", data.type = "Masked Somatic Mutation", workflow.type = "Aliquot Ensemble Somatic Variant Merging and Masking")
+#GDCdownload(maf_query)
+
+maf <- GDCprepare(maf_query) # as long as it runs, ignore any errors
+
+maf_object <- read.maf(maf = maf, clinicalData = rna_clinical, isTCGA = TRUE)
+```
+```{r}
+#Useful sections of the clinical data.
+clinic <- clinical.BCRtab.all$clinical_patient_skcm[-c(1,2),]
+rad <- clinical.BCRtab.all$clinical_radiation_skcm[-c(1,2),]
+drug <- clinical.BCRtab.all$clinical_drug_skcm[-c(1,2),]
+#Metastisis status rna_se@colData$definition, only metastatic and primary solid tumour
+rna_clinical$metastatic <- ifelse(rna_clinical$definition=="Metastatic",T, ifelse(rna_clinical$definition=="Primary solid Tumor",F,NA))
+metastatic_mask = is.na(rna_clinical$metastatic)
+metastatic_clinical = rna_clinical[!metastatic_mask,]#clean dataframe.
+```
+
+```{r}
+#making a KM plot.
+metastatic_clinical$survival_time <- ifelse(is.na(metastatic_clinical$days_to_last_follow_up)|(!is.na(metastatic_clinical$days_to_death)&(metastatic_clinical$days_to_death>metastatic_clinical$days_to_last_follow_up)),                        metastatic_clinical$days_to_death,metastatic_clinical$days_to_last_follow_up )
+
+cleaned_metastatic_clinic <- metastatic_clinical[!is.na(metastatic_clinical$survival_time),]
+
+cleaned_metastatic_clinic$survival_time <- as.numeric(cleaned_metastatic_clinic$survival_time)
+
+```
+```{r}
+#png("C:/Users/ME/Documents/QBIO/sp24_cw/qbio_490_dgmarsha/Review/KM_Metastatic_SKCM.png")
+cleaned_metastatic_clinic$death_event <- ifelse(cleaned_metastatic_clinic$vital_status=="Alive", F, T)
+
+survival_object <- Surv(time = cleaned_metastatic_clinic$survival_time,
+                        event = cleaned_metastatic_clinic$death_event)
+
+fit_object <- survfit(survival_object ~ metastatic, data = cleaned_metastatic_clinic)
+survplot <- ggsurvplot(fit_object,
+                       pval=TRUE,
+                       ggtheme = theme(plot.margin = unit(c(1,1,1,1), "cm")),
+                       legend = 'right')
+
+KM_plot <- survplot$plot + theme_bw() + theme(axis.title = element_text(size=20), 
+                                              axis.text = element_text(size=16),
+                                              legend.title = element_text(size=14),
+                                              legend.text = element_text(size=12))
+
+KM_plot
+```
+```{r}
+#making a co-oncoplot.
+metastatic_maf <- subsetMaf(maf=maf_object, tsb =metastatic_clinical$Tumor_Sample_Barcode[metastatic_clinical$metastatic] )
+
+primary_solid_maf <- subsetMaf(maf=maf_object, tsb =metastatic_clinical$Tumor_Sample_Barcode[!metastatic_clinical$metastatic] )
+
+
+#png("C:/Users/ME/Documents/QBIO/sp24_cw/qbio_490_dgmarsha/Review/coOncoplot_Metastatic_SKCM.png")
+#If you want to save the graphs, uncomment above and change the path to your own.
+coOncoplot(m1 = metastatic_maf, #both mafs
+           m2 = primary_solid_maf, titleFontSize = 1,geneNamefont = .4,
+           m1Name = "Metastatic Samples", #titles
+           m2Name = "Primary Solid",  
+           borderCol = NA)
+```
+```{r}
+#making a co-oncoplot
+#png("C:/Users/ME/Documents/QBIO/sp24_cw/qbio_490_dgmarsha/Review/colollipop_Metastatic_SKCM.png")
+lollipopPlot2(m1 = metastatic_maf, 
+           m2 = primary_solid_maf, gene = "DNAH5",     
+           m1_name = "Metastatic Samples", 
+           m2_name = "Primary Solid Tumour")
+```
+```{r}
+#Making a somatic interactions plot.
+#png("C:/Users/ME/Documents/QBIO/sp24_cw/qbio_490_dgmarsha/Review/SOmatInteract_Metastatic_SKCM.png")
+somaticInteractions(maf = metastatic_maf,
+                    top = 20,
+                    pvalue = c(0.05, 0.1))
+#png("C:/Users/ME/Documents/QBIO/sp24_cw/qbio_490_dgmarsha/Review/SOmatInteract_PrimarSolid_SKCM.png")
+somaticInteractions(maf = primary_solid_maf,
+                    top = 20,
+                    pvalue = c(0.05, 0.1))
+```
+
+```{r}
+#Preparing for Differential expression. These are factors and controls.
+metastatic_clinical$definition=factor(metastatic_clinical$definition)
+metastatic_clinical$vital_status=factor(metastatic_clinical$vital_status)
+metastatic_clinical$gender=factor(metastatic_clinical$gender)
+metastatic_clinical$race=factor(metastatic_clinical$race)
+
+metastatic_clinical$Radiation = ifelse(metastatic_clinical$Tumor_Sample_Barcode %in% rad$bcr_patient_barcode, 1, 0)
+
+metastatic_clinical$Chemo = ifelse((metastatic_clinical$Tumor_Sample_Barcode %in% drug$bcr_patient_barcode[drug$pharmaceutical_therapy_type =="Chemotherapy"]), 1, 0)
+
+metastatic_clinical$Immuno = ifelse((metastatic_clinical$Tumor_Sample_Barcode %in% drug$bcr_patient_barcode[drug$pharmaceutical_therapy_type =="Immunotherapy"]) , 1, 0)
+
+metastatic_clinical$Molecular = ifelse((metastatic_clinical$Tumor_Sample_Barcode %in% drug$bcr_patient_barcode[drug$pharmaceutical_therapy_type =="Targeted Molecular therapy"]), 1, 0)
+
+metastatic_clinical$Vaccine = ifelse((metastatic_clinical$Tumor_Sample_Barcode %in% drug$bcr_patient_barcode[drug$pharmaceutical_therapy_type =="Vaccine"]), 1, 0)
+
+metastatic_clinical$Radiation=factor(metastatic_clinical$Radiation)
+metastatic_clinical$Chemo=factor(metastatic_clinical$Chemo)
+metastatic_clinical$Immuno=factor(metastatic_clinical$Immuno)
+metastatic_clinical$Molecular=factor(metastatic_clinical$Molecular)
+metastatic_clinical$definition=factor(metastatic_clinical$definition)
+metastatic_clinical$Vaccine=factor(metastatic_clinical$Vaccine)
+```
+
+```{r}
+
+#Clean the data.
+treatments_mask <- ifelse(colnames(metastatic_clinical)=='treatments',F,T)
+metastatic_clinical<-metastatic_clinical[,treatments_mask]
+primary_site_mask <- ifelse(colnames(metastatic_clinical)=='primary_site',F,T)
+metastatic_clinical<-metastatic_clinical[,primary_site_mask]
+disease_type_mask <- ifelse(colnames(metastatic_clinical)=='disease_type',F,T)
+metastatic_clinical<-metastatic_clinical[,disease_type_mask]
+#Removed nested lists.
+```
+```{r}
+vital_mask = metastatic_clinical$vital_status != "Not Reported"
+race_mask = metastatic_clinical$race != "not reported"
+metastatic_clinical=metastatic_clinical[vital_mask&race_mask,]
+#rna_genes
+rna_genes<- rna_se@rowRanges@elementMetadata
+rna_genes= as.data.frame(rna_genes)
+rownames(rna_genes) = rna_genes$gene_id
+
+rna_counts <- as.data.frame(rna_se@assays@data$unstranded)
+rna_counts = rna_counts[,!metastatic_mask]
+rna_counts = rna_counts[,vital_mask&race_mask]
+#changing row names and colnames
+rownames(rna_counts) = rownames(rna_genes)
+colnames(rna_counts) = rownames(metastatic_clinical)
+
+higher_count_mask = rowSums(rna_counts)>=20
+rna_counts=rna_counts[higher_count_mask,]#filter out low expression
+rna_genes=rna_genes[higher_count_mask,]#filter out low expression
+design = ~ vital_status+race+gender+Radiation+Chemo+Immuno+Molecular+Vaccine+ definition
+```
+```{r}
+#do the analysis.
+dds <- DESeqDataSetFromMatrix(countData = rna_counts,colData = metastatic_clinical, design= design)
+
+dds_obj <- DESeq(dds)
+```
+
+```{r}
+#plot the results.
+resultsNames(dds_obj)
+
+results <- results(dds_obj, format = "DataFrame", contrast = c("definition", "Metastatic" , "Primary solid Tumor"))
+
+results <- data.frame(results)
+#adding information columns and -log10(padj) column
+results$gene_name <- rna_genes$gene_name
+results$"-log10(padj)" <- -log10(results$padj) 
+
+row.names(results) <- rna_genes$gene_id
+
+#png("C:/Users/ME/Documents/QBIO/sp24_cw/qbio_490_dgmarsha/Review/RNA_Volcano_SKCM_byTumourType.png")
+EnhancedVolcano(results,
+                lab = results$gene_name,
+                x = 'log2FoldChange',
+                y = 'pvalue',
+                title = 'Tumour Type: Metastatic vs Primary Solid',
+                axisLabSize = 10,
+                titleLabSize = 14, subtitleLabSize = 10, captionLabSize = 10,
+                pointSize = 1.0,
+                labSize = 2.0)
+```
+```{r}
+length(results$log2FoldChange[(results$padj<= .05 )& results$log2FoldChange<=-1])
+length(results$log2FoldChange[(results$padj<= .05 )& results$log2FoldChange>=1])
+
+```
